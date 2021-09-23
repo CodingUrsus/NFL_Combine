@@ -1,0 +1,149 @@
+---
+title: "NFL_Combine_Data"
+author: "Austin"
+date: "10/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##The Next chunk reads in data and packages for the next set of analyses
+
+```{r libs, include=FALSE}
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(stringr)
+combine_data <- read_xlsx("/home/hammera/NFL_Combine_Data/NFL_Combine_Data.xlsx")
+occ <- gsub(" ", "_", colnames(combine_data), fixed=TRUE)
+ocb <- gsub(" ", "_", occ)
+oca <- gsub("[()]", "", ocb)
+nfl_combine <- combine_data
+colnames(nfl_combine) <- oca
+```
+
+
+```{r initial_explorations, echo=FALSE}
+weight_and_bench <- nfl_combine %>%
+  filter(!is.na(Bench_Press)) %>%
+  filter(!is.na(Weight_lbs)) %>%
+  ggplot(mapping=aes(x=Weight_lbs, y=Bench_Press)) + 
+  geom_point(aes(color=POS))
+  
+bench_and_forty <- nfl_combine %>%
+  filter(!is.na(`40_Yard`)) %>%
+  filter(!is.na(Bench_Press)) %>%
+  filter(Year > 1900)
+
+BYU_combine_dudes <- nfl_combine %>%
+  filter(College=="Brigham Young")
+
+anova(lm(Bench_Press~Weight_lbs,data=nfl_combine))
+
+bench_year <- bench_and_forty %>%
+  ggplot(aes(x=Year, y=`40_Yard`)) +
+  geom_point()
+  #geom_smooth(method=(c("lm")))
+```
+
+
+
+
+```{r exploring the data, echo=FALSE}
+fast_dudes <- bench_and_forty %>%
+  filter(`40_Yard` < 4.3)
+
+fastest_center <- bench_and_forty %>%
+  filter(POS=="C") %>%
+  arrange(`40_Yard`) %>%
+  ggplot(aes(x=Weight_lbs, y=`40_Yard`)) + 
+  geom_point()
+
+
+position_bench_boxplot <- ggplot(bench_and_forty, aes(x=POS, y=Bench_Press)) +
+  geom_boxplot()
+position_bench_boxplot
+
+data_to_cluster <- bench_and_forty
+
+ratio_mapping <- bench_and_forty %>%
+  ggplot(aes(x=Bench_Press, y=`40_Yard`)) + 
+  geom_point(size=0.1) + 
+  facet_wrap(vars(POS))
+ratio_mapping
+
+by_group_stats <- bench_and_forty %>%
+  group_by(POS) %>%
+  summarise_at(vars(`Weight_lbs`),              # Specify column
+               list(name = median))
+by_group_stats
+
+anova(lm(Bench_Press ~ Weight_lbs, data=bench_and_forty))
+ggplot(data= bench_and_forty, aes(x=Weight_lbs, y=Bench_Press, color=POS)) + 
+  geom_point() +
+  geom_smooth(method="lm")
+
+
+
+```
+
+
+```{r position_ml, echo=FALSE}
+library(randomForest)
+library(caret)
+library(glmnet)
+## Which positions are poorly represented in the data and ought to be cut?
+pos_to_cut <- nfl_combine %>%
+  group_by(POS) %>%
+  count() %>%
+  arrange(n) %>%
+  filter(n<65) ## I snooped this variable after looking at the possible variables, and this was about the threshold to slice at
+
+position_data <- nfl_combine %>%
+  filter(!(POS %in% pos_to_cut$POS)) %>%
+  select(POS, `40_Yard`, Bench_Press, Weight_lbs, Height_in, Shuttle, Vert_Leap_in, Arm_Length_in, Hand_Size_in) %>%
+  drop_na()
+
+split_data <- createDataPartition(position_data$POS, p=0.7)
+train_data <- position_data[data.frame(split_data)$Resample1,]
+train_x <- subset(train_data, select = -c(Bench_Press, POS))
+train_y <- train_data$Bench_Press
+test_data <- position_data[-data.frame(split_data)$Resample1,]
+
+RF_position <- randomForest(POS ~ ., data=position_data, na.rm=TRUE)
+
+bench_lm <- lm(Bench_Press~., data=position_data)
+anova(bench_lm)
+
+lasso_model <- glmnet(x=as.matrix(train_x), y=train_y, alpha=1)
+
+
+
+```
+
+
+```{r brigham_young, echo=FALSE}
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,52 @@
+---
+title: "Interactive_Viz"
+author: "Austin"
+date: "5/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r visualize_combine_data}
+library(tidyverse)
+library(gganimate)
+
+combine_data <- read_xlsx("/home/hammera/NFL_Combine_Data/NFL_Combine_Data.xlsx")
+occ <- gsub(" ", "_", colnames(combine_data), fixed=TRUE)
+ocb <- gsub(" ", "_", occ)
+oca <- gsub("[()]", "", ocb)
+nfl_combine <- combine_data
+colnames(nfl_combine) <- oca
+
+
+# color = position, 
+
+position_data <- nfl_combine %>%
+#  filter(POS %in% c("RB", "QB", "WR")) %>%
+  select(Year, POS, `40_Yard`, Weight_lbs, Bench_Press) %>%
+  filter(!(is.na(Weight_lbs)), !is.na(Bench_Press), !is.na(Year), !is.na(`40_Yard`), Year > 1985) %>%
+  mutate(year = round(Year)) %>%
+  group_by(POS, Year) %>%
+  summarize(median_40 = median(`40_Yard`), median_weight = median(Weight_lbs), median_bench = median(Bench_Press)) %>%
+  ungroup() %>%
+  mutate(the_date = as.Date(ISOdate(Year, 1, 1)))
+
+weight_bench_viz <- ggplot(position_data, aes(x=median_weight, y=median_bench, colour = POS)) +
+  geom_point(alpha = 0.7, size=6, show.legend = TRUE) +
+  labs(title = 'Year: {frame_time}', x = 'Median Weight', y = 'Median Bench Press Reps') +
+  transition_time(the_date) +
+  ease_aes('linear')
+
+```
+
+
+
+
+
+
+
+
+
